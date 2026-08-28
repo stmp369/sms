@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SMS Inbox</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #1a1d24;
+    --accent: #4f8cff;
+    --text: #e8e9ed;
+    --muted: #8a8f9c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 20px 16px;
+    border-bottom: 1px solid #262a33;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 20px;
+  }
+  #status {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  #messages {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+  .msg {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .msg .sender {
+    font-weight: 600;
+    color: var(--accent);
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  .msg .body {
+    font-size: 15px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .msg .time {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+    text-align: right;
+  }
+  #empty {
+    text-align: center;
+    color: var(--muted);
+    margin-top: 60px;
+    font-size: 14px;
+  }
+  #config-warning {
+    background: #3a1f1f;
+    color: #ff9b9b;
+    padding: 12px 16px;
+    font-size: 13px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="config-warning">
+  ⚠️ Firebase config bosano hoyni. Nichey script tag e tomar firebaseConfig bosao.
+</div>
+
+<header>
+  <h1>📱 SMS Inbox</h1>
+  <div id="status">Connecting...</div>
+</header>
+
+<div id="messages">
+  <div id="empty">Kono message ashe ni ekhono...</div>
+</div>
+
+<!-- Firebase SDKs (compat version — simplest to drop in without a build step) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+
+<script>
+  // ====== PASTE YOUR FIREBASE CONFIG HERE ======
+  // Get this from Firebase Console > Project Settings > Your apps > Web app
+  const firebaseConfig = {
+    apiKey: "AIzaSyCzHJ-rGAXSAndqCoks3h2B7r0PrAj1Bb8",
+    authDomain: "others-1d317.firebaseapp.com",
+    projectId: "others-1d317",
+    storageBucket: "others-1d317.firebasestorage.app",
+    messagingSenderId: "662394579808",
+    appId: "1:662394579808:web:e5a7c0d19e9c70885c8c05"
+  };
+  // ==============================================
+
+  const statusEl = document.getElementById('status');
+  const messagesEl = document.getElementById('messages');
+  const emptyEl = document.getElementById('empty');
+  const warningEl = document.getElementById('config-warning');
+
+  if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+    warningEl.style.display = 'block';
+    statusEl.textContent = 'Firebase config missing';
+  } else {
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    db.collection('messages')
+      .orderBy('time', 'desc')
+      .limit(200)
+      .onSnapshot(
+        (snapshot) => {
+          statusEl.textContent = `Live • ${snapshot.size} message(s)`;
+          if (snapshot.empty) {
+            messagesEl.innerHTML = '';
+            messagesEl.appendChild(emptyEl);
+            return;
+          }
+          messagesEl.innerHTML = '';
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            const div = document.createElement('div');
+            div.className = 'msg';
+            div.innerHTML = `
+              <div class="sender">${escapeHtml(data.sender || 'Unknown')}</div>
+              <div class="body">${escapeHtml(data.body || '')}</div>
+              <div class="time">${escapeHtml(data.time || '')}</div>
+            `;
+            messagesEl.appendChild(div);
+          });
+        },
+        (error) => {
+          statusEl.textContent = 'Error: ' + error.message;
+        }
+      );
+  }
+
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+</script>
+
+</body>
+</html>
