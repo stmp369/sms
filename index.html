@@ -1,165 +1,158 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SMS Inbox</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMS Dashboard</title>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <style>
-  :root {
-    --bg: #0f1115;
-    --card: #1a1d24;
-    --accent: #4f8cff;
-    --text: #e8e9ed;
-    --muted: #8a8f9c;
+  :root{
+    --bg:#0f1720; --panel:#182333; --panel2:#1f2d40;
+    --text:#e7edf5; --muted:#8fa3bd; --accent:#3d7ec9;
+    --otp:#2ea86b; --border:#2a3a4f;
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-  }
-  header {
-    padding: 20px 16px;
-    border-bottom: 1px solid #262a33;
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-    z-index: 10;
-  }
-  header h1 {
-    margin: 0;
-    font-size: 20px;
-  }
-  #status {
-    font-size: 12px;
-    color: var(--muted);
-    margin-top: 4px;
-  }
-  #messages {
-    max-width: 640px;
-    margin: 0 auto;
-    padding: 16px;
-  }
-  .msg {
-    background: var(--card);
-    border-radius: 12px;
-    padding: 14px 16px;
-    margin-bottom: 10px;
-  }
-  .msg .sender {
-    font-weight: 600;
-    color: var(--accent);
-    font-size: 14px;
-    margin-bottom: 4px;
-  }
-  .msg .body {
-    font-size: 15px;
-    line-height: 1.4;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-  .msg .time {
-    font-size: 11px;
-    color: var(--muted);
-    margin-top: 6px;
-    text-align: right;
-  }
-  #empty {
-    text-align: center;
-    color: var(--muted);
-    margin-top: 60px;
-    font-size: 14px;
-  }
-  #config-warning {
-    background: #3a1f1f;
-    color: #ff9b9b;
-    padding: 12px 16px;
-    font-size: 13px;
-    display: none;
-  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+  header{position:sticky;top:0;background:var(--panel);border-bottom:1px solid var(--border);padding:14px 16px;z-index:5}
+  header h1{margin:0 0 10px 0;font-size:18px;font-weight:700;letter-spacing:.2px}
+  .status{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-left:8px}
+  .dot{width:7px;height:7px;border-radius:50%;background:#555}
+  .dot.live{background:var(--otp);box-shadow:0 0 0 3px rgba(46,168,107,.2)}
+  .searchbar{display:flex;gap:8px}
+  .searchbar input{flex:1;background:var(--panel2);border:1px solid var(--border);color:var(--text);
+    padding:10px 12px;border-radius:10px;font-size:14px;outline:none}
+  .searchbar input:focus{border-color:var(--accent)}
+  main{max-width:640px;margin:0 auto;padding:12px}
+  .msg{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+  .msg-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}
+  .sender{font-weight:700;font-size:14px;color:var(--text)}
+  .time{font-size:11px;color:var(--muted);white-space:nowrap}
+  .body{font-size:14px;line-height:1.5;color:#dbe4f0;white-space:pre-wrap;word-break:break-word}
+  .otp{color:var(--otp);font-weight:800;letter-spacing:1px}
+  .copybtn{margin-top:8px;background:var(--panel2);border:1px solid var(--border);color:var(--muted);
+    font-size:12px;padding:5px 10px;border-radius:8px;cursor:pointer}
+  .copybtn:active{background:var(--accent);color:#fff}
+  .empty{text-align:center;color:var(--muted);padding:60px 20px;font-size:14px}
+  .cfgwarn{background:#3a2a1f;border:1px solid #6b4a25;color:#f0c99a;padding:14px;border-radius:10px;margin:12px;font-size:13px;line-height:1.6}
 </style>
 </head>
 <body>
 
-<div id="config-warning">
-  ⚠️ Firebase config bosano hoyni. Nichey script tag e tomar firebaseConfig bosao.
-</div>
-
 <header>
-  <h1>📱 SMS Inbox</h1>
-  <div id="status">Connecting...</div>
+  <h1>SMS Dashboard <span class="status"><span class="dot" id="statusDot"></span><span id="statusText">connecting…</span></span></h1>
+  <div class="searchbar">
+    <input id="searchInput" type="text" placeholder="Sender বা লেখা দিয়ে খুঁজুন…">
+  </div>
 </header>
 
-<div id="messages">
-  <div id="empty">Kono message ashe ni ekhono...</div>
-</div>
-
-<!-- Firebase SDKs (compat version — simplest to drop in without a build step) -->
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<main id="main">
+  <div class="empty" id="emptyState">Loading…</div>
+</main>
 
 <script>
-  // ====== PASTE YOUR FIREBASE CONFIG HERE ======
-  // Get this from Firebase Console > Project Settings > Your apps > Web app
-  const firebaseConfig = {
-    apiKey: "AIzaSyCzHJ-rGAXSAndqCoks3h2B7r0PrAj1Bb8",
-    authDomain: "others-1d317.firebaseapp.com",
-    projectId: "others-1d317",
-    storageBucket: "others-1d317.firebasestorage.app",
-    messagingSenderId: "662394579808",
-    appId: "1:662394579808:web:e5a7c0d19e9c70885c8c05"
-  };
-  // ==============================================
+// ---- Firebase config (dedicated project for SMS dashboard) ----
+const firebaseConfig = {
+  apiKey: "AIzaSyDW1xh8nz99ppmrevUCapiXy7TVNPwXeq0",
+  authDomain: "smsm-3b4aa.firebaseapp.com",
+  projectId: "smsm-3b4aa",
+  storageBucket: "smsm-3b4aa.firebasestorage.app",
+  messagingSenderId: "1025578003774",
+  appId: "1:1025578003774:web:b623e42594e72423ec506f"
+};
 
-  const statusEl = document.getElementById('status');
-  const messagesEl = document.getElementById('messages');
-  const emptyEl = document.getElementById('empty');
-  const warningEl = document.getElementById('config-warning');
+const COLLECTION = "messages"; // matches the SMS Gateway forwarder's target collection
+const MAX_MESSAGES = 300;
 
-  if (firebaseConfig.apiKey === "YOUR_API_KEY") {
-    warningEl.style.display = 'block';
-    statusEl.textContent = 'Firebase config missing';
-  } else {
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-    db.collection('messages')
-      .orderBy('time', 'desc')
-      .limit(200)
-      .onSnapshot(
-        (snapshot) => {
-          statusEl.textContent = `Live • ${snapshot.size} message(s)`;
-          if (snapshot.empty) {
-            messagesEl.innerHTML = '';
-            messagesEl.appendChild(emptyEl);
-            return;
-          }
-          messagesEl.innerHTML = '';
-          snapshot.forEach((doc) => {
-            const data = doc.data();
-            const div = document.createElement('div');
-            div.className = 'msg';
-            div.innerHTML = `
-              <div class="sender">${escapeHtml(data.sender || 'Unknown')}</div>
-              <div class="body">${escapeHtml(data.body || '')}</div>
-              <div class="time">${escapeHtml(data.time || '')}</div>
-            `;
-            messagesEl.appendChild(div);
-          });
-        },
-        (error) => {
-          statusEl.textContent = 'Error: ' + error.message;
-        }
-      );
+const mainEl = document.getElementById('main');
+const emptyState = document.getElementById('emptyState');
+const searchInput = document.getElementById('searchInput');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+
+let allMessages = [];
+
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function highlightOtp(text){
+  // highlight standalone 4-8 digit numbers (typical OTP length)
+  return escapeHtml(text).replace(/\b(\d{4,8})\b/g, '<span class="otp">$1</span>');
+}
+
+function timeAgo(date){
+  if(!date) return '';
+  const diff = Math.floor((Date.now() - date.getTime())/1000);
+  if(diff < 60) return 'এইমাত্র';
+  if(diff < 3600) return Math.floor(diff/60) + ' মিনিট আগে';
+  if(diff < 86400) return Math.floor(diff/3600) + ' ঘণ্টা আগে';
+  return date.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) + ' ' +
+         date.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+
+function render(){
+  const q = searchInput.value.trim().toLowerCase();
+  const filtered = q
+    ? allMessages.filter(m => (m.sender||'').toLowerCase().includes(q) || (m.message||'').toLowerCase().includes(q))
+    : allMessages;
+
+  if(filtered.length === 0){
+    mainEl.innerHTML = '';
+    emptyState.textContent = allMessages.length === 0 ? 'এখনো কোনো SMS আসেনি' : 'কিছু পাওয়া যায়নি';
+    mainEl.appendChild(emptyState);
+    return;
   }
 
-  function escapeHtml(str) {
-    const d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
-  }
+  mainEl.innerHTML = filtered.map((m, i) => `
+    <div class="msg">
+      <div class="msg-top">
+        <span class="sender">${escapeHtml(m.sender || 'Unknown')}</span>
+        <span class="time">${timeAgo(m.receivedAtDate)}</span>
+      </div>
+      <div class="body">${highlightOtp(m.message || '')}</div>
+      <button class="copybtn" data-idx="${i}">Copy</button>
+    </div>
+  `).join('');
+
+  mainEl.querySelectorAll('.copybtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = +btn.dataset.idx;
+      navigator.clipboard.writeText(filtered[idx].message || '').then(() => {
+        btn.textContent = 'Copied ✓';
+        setTimeout(() => btn.textContent = 'Copy', 1200);
+      });
+    });
+  });
+}
+
+searchInput.addEventListener('input', render);
+
+db.collection(COLLECTION)
+  .orderBy('time', 'desc')
+  .limit(MAX_MESSAGES)
+  .onSnapshot(
+    snap => {
+      statusDot.classList.add('live');
+      statusText.textContent = 'live';
+      allMessages = snap.docs.map(doc => {
+        const d = doc.data();
+        let receivedAtDate = null;
+        if(d.time && d.time.toDate) receivedAtDate = d.time.toDate();
+        else if(d.time) receivedAtDate = new Date(d.time.replace(' ', 'T'));
+        return { sender: d.sender, message: d.body, receivedAtDate };
+      });
+      render();
+    },
+    err => {
+      statusText.textContent = 'connection error';
+      mainEl.innerHTML = `<div class="cfgwarn">Firestore-এ কানেক্ট করা যায়নি: ${escapeHtml(err.message)}<br><br>
+      Firestore Database তৈরি আছে কিনা এবং Security Rules-এ এই কালেকশনের জন্য read অনুমতি আছে কিনা চেক করুন।</div>`;
+    }
+  );
 </script>
-
 </body>
 </html>
